@@ -26,3 +26,4 @@
       return 0;  
       //cap.release();  
     }
+g++ -o tx2opencv tx2opencv.cpp `pkg-config opencv –cflags –li^C `
