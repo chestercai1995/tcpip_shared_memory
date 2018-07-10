@@ -7,9 +7,11 @@
 #include <netdb.h>  
 #include <pthread.h>    
 #include <unistd.h>
+#include <stdint.h>
 
-#define BUF_SIZE 8
+#define BUF_SIZE 1
 #define CLADDR_LEN 100
+#define PORT 1234
 
 char buffer[BUF_SIZE]; 
 int n;
@@ -106,6 +108,15 @@ int main(int argc, char *argv[]) {
     if(img == NULL){
         error("ERROR: Cannot open image");
     }
+    printf("calculating the size of the image\n");
+    fseek(img, 0L, SEEK_END);
+    int32_t size = ftell(img);
+    rewind(img);
+    printf("the size of the image is %d bytes\n", size);
+    n = write(sockfd, &size, 4);
+    if (n < 0){
+        error("error writing to socket\n");
+    }
     printf("staring to send img \n");
     while(fread(buffer, BUF_SIZE, 1, img)){
         n = write(sockfd, buffer, BUF_SIZE /*strlen(buffer)*/); 
@@ -114,9 +125,9 @@ int main(int argc, char *argv[]) {
         //    break;
         //    //exit(0);
         //}
-        if (n < 0) 
-            error("ERROR writing to socket"); 
-               
+        if (n < 0){ 
+            error("ERROR writing to socket\n"); 
+        }
         //return 0; 
         bzero(buffer, BUF_SIZE);
     }

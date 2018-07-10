@@ -8,12 +8,12 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define BUF_SIZE 32 
+#define BUF_SIZE 1
 #define CLADDR_LEN 100
-
+#define PORT 1234
 
 char buffer[BUF_SIZE];
-char buffer1[BUF_SIZE];
+unsigned char r_buffer[BUF_SIZE];
 
 void error(char *msg){
     perror(msg);
@@ -29,7 +29,11 @@ void * receive(void* socket) {
     if(output == NULL){
         error("ERROR: cannot open the output file\n");
     }
-
+    int size;
+    ret = read(sockfd, buffer, BUF_SIZE);
+    if(ret > 0){
+        
+    }
     printf("starting to receive img and saving it to output.img\n");
     while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0) {
         if(buffer[0]=='e' & buffer[1]=='x' & buffer[2]=='i' & buffer[3]=='t'){
@@ -64,15 +68,17 @@ int main(int argc, char *argv[]){
     //}
     char clientAddr[CLADDR_LEN];
     if (argc < 2) {
-        fprintf(stderr,"ERROR, no port provided\n");
-        exit(1);
+        printf("no port number provided, using default port number %d", PORT);
+        portno = PORT;
+    }
+    else{
+        portno = atoi(argv[1]);
     }
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) 
        error("ERROR opening socket");
     printf("Socket created...\n");
     bzero((char *) &serv_addr, sizeof(serv_addr));
-    portno = atoi(argv[1]);
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(portno);
     serv_addr.sin_addr.s_addr = INADDR_ANY;
