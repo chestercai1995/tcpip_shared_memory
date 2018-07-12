@@ -68,10 +68,51 @@ void init_client(char** serv_addr, int portno){
 }
 
 void send(FILE* in){
+    char buffer[BUF_SIZE];
+    printf("calculating the size of the file\n");
+    fseek(in, 0L, SEEK_END);
+    int32_t size = ftell(img);
+    rewind(in);
+    printf("the size of the file is %d bytes\n", size);
+    int n = write(sockfd, &size, 4);
+    if (n < 0){
+        error("error writing to socket\n");
+    }
+    printf("staring to send img \n");
+    while(fread(buffer, BUF_SIZE, 1, img)){
+        n = write(sockfd, buffer, BUF_SIZE); 
+        if (n < 0){ 
+            error("ERROR writing to socket\n"); 
+        }
+        bzero(buffer, BUF_SIZE);
+    }
+    printf("finished sending img\n");
 }
 
-void receive(char** out){
-
+void receive(char** out, int sockfd){
+    int ret;
+    memset(buffer, 0, BUF_SIZE);
+    FILE* output = fopen(out,"wb");
+    if(output == NULL){
+        error("ERROR: cannot open the output file\n");
+    }
+    int32_t size;
+    ret = read(sockfd, &size, 4);
+    if(ret <= 0){
+        error("error receiving size of the file\n");
+    }
+    printf("size of the file is %d bytes\n", size);
+    printf("starting to receive file\n");
+    while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0) {
+       fwrite(buffer, BUF_SIZE, 1, output);
+       bzero(buffer, BUF_SIZE);
+    }
+    if (ret < 0) 
+        printf("Error receiving data!\n");
+    else
+        printf("Closing connection\n");
+    fclose(output);
+    //close(sockfd); TODO: someone needs to close this
 }
 void close_connection(){
 }
