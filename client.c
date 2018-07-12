@@ -60,8 +60,8 @@ void *receive(void * socket){
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 3) {
-         fprintf(stderr,"usage %s hostname port\n", argv[0]);
+    if (argc < 2) {
+         printf("usage %s hostname port\n", argv[0]);
          exit(0);
     }
 
@@ -80,7 +80,14 @@ int main(int argc, char *argv[]) {
     }*/
 
     printf("Waiting for connection..\n");
-    portno = atoi(argv[2]); 
+    if (argc == 2) {
+        printf("not port number provided, using default port %d", PORT);
+        portno = 1234;
+    }
+    else{
+        portno = atoi(argv[2]); 
+    }
+
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) 
         error("ERROR opening socket"); 
@@ -104,7 +111,7 @@ int main(int argc, char *argv[]) {
         printf("ERROR: Return Code from pthread_create() is %d\n", ret);
         error("ERROR creating thread");
     }
-    FILE* img = fopen("test.jpg\0", "rb");
+    FILE* img = fopen("test.txt\0", "rb");
     if(img == NULL){
         error("ERROR: Cannot open image");
     }
@@ -119,27 +126,21 @@ int main(int argc, char *argv[]) {
     }
     printf("staring to send img \n");
     while(fread(buffer, BUF_SIZE, 1, img)){
-        n = write(sockfd, buffer, BUF_SIZE /*strlen(buffer)*/); 
-        //if(buffer1[2+strlen(user)]=='e'&buffer1[2+strlen(user)+1]=='x'&buffer1[2+strlen(user)+2]=='i'&buffer1[2+strlen(user)+3]=='t'){
-        //    printf("Bye");
-        //    break;
-        //    //exit(0);
-        //}
+        n = write(sockfd, buffer, BUF_SIZE); 
         if (n < 0){ 
             error("ERROR writing to socket\n"); 
         }
-        //return 0; 
         bzero(buffer, BUF_SIZE);
     }
-    buffer[0] = 'e';
+    /*buffer[0] = 'e';
     buffer[1] = 'x';
     buffer[2] = 'i';
     buffer[3] = 't';
     buffer[4] = '\0';
-    n = write(sockfd, buffer, BUF_SIZE /*strlen(buffer)*/); 
+    n = write(sockfd, buffer, BUF_SIZE); 
     if (n < 0) 
         error("ERROR writing to socket"); 
-    
+    */
     printf("finished sending img\n");
     fclose(img);
 //    pthread_join(rThread, NULL);

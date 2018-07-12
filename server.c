@@ -7,6 +7,7 @@
 #include <pthread.h> 
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <stdint.h>
 
 #define BUF_SIZE 1
 #define CLADDR_LEN 100
@@ -25,21 +26,18 @@ void * receive(void* socket) {
     sockfd =  (* ((int*)socket));
     
     memset(buffer, 0, BUF_SIZE);
-    FILE* output = fopen("output.jpg", "wb");
+    FILE* output = fopen("output.txt", "wb");
     if(output == NULL){
         error("ERROR: cannot open the output file\n");
     }
-    int size;
-    ret = read(sockfd, buffer, BUF_SIZE);
-    if(ret > 0){
-        
+    int32_t size;
+    ret = read(sockfd, &size, 4);
+    if(ret <= 0){
+        error("error receiving size of the file\n");
     }
+    printf("size of the file is %d bytes\n", size);
     printf("starting to receive img and saving it to output.img\n");
     while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0) {
-        if(buffer[0]=='e' & buffer[1]=='x' & buffer[2]=='i' & buffer[3]=='t'){
-            printf("the client has cut the connection\n");
-            pthread_exit(NULL);
-        }
        fwrite(buffer, BUF_SIZE, 1, output);
        bzero(buffer, BUF_SIZE);
     }
@@ -68,7 +66,7 @@ int main(int argc, char *argv[]){
     //}
     char clientAddr[CLADDR_LEN];
     if (argc < 2) {
-        printf("no port number provided, using default port number %d", PORT);
+        printf("no port number provided, using default port number %d\n", PORT);
         portno = PORT;
     }
     else{
@@ -76,7 +74,7 @@ int main(int argc, char *argv[]){
     }
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) 
-       error("ERROR opening socket");
+       error("ERROR opening socket\n");
     printf("Socket created...\n");
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
@@ -84,7 +82,7 @@ int main(int argc, char *argv[]){
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     if (bind(sockfd, (struct sockaddr *) &serv_addr,
              sizeof(serv_addr)) < 0) 
-             error("ERROR on binding");
+             error("ERROR on binding\n");
     printf("Binding done...\n");
     printf("Waiting for a connection...\n");
     listen(sockfd,5);
@@ -98,12 +96,12 @@ int main(int argc, char *argv[]){
     //bzero(buffer,256);
     if (ret = pthread_create(&rThread, NULL, receive, (void *) (&newsockfd))) {
         printf("ERROR: Return Code from pthread_create() is %d\n", ret);
-        error("ERROR creating thread");
+        error("ERROR creating thread\n");
     }
 
 //    FILE* img = fopen("test1.jpg\0", "rb");
 //    if(img == NULL){
-//        error("ERROR: Cannot open image");
+//        error("ERROR: Cannot open image\n");
 //    }
 //    printf("staring to send img \n");
 //    while(fread(buffer, BUF_SIZE, 1, img)){
