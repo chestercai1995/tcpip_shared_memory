@@ -9,7 +9,7 @@ int main(int argc, char** argv){
         printf("cannot open file\n");
         exit(1);
     }
-    transmit(in, sockfd);
+    transmit_file(in, sockfd);
     
     close_connection(sockfd);
 }
