@@ -73,6 +73,10 @@ int init_client(char* serveraddr, int portno){
     return sockfd;
 }
 
+int close_connection(int sockfd){
+    return close(sockfd);
+}
+
 int transmit_file(FILE* in, int sockfd){
     char buffer[BUF_SIZE];
     printf("calculating the size of the file\n");
@@ -127,6 +131,53 @@ int receive_file(char* out, int sockfd){
     fclose(output);
     return 0;
 }
-void close_connection(int sockfd){
-    close(sockfd);
+
+int transmit_buffer(void* data, int32_t size, int sockfd) {
+    char buffer[BUF_SIZE];
+    char* data_p = data;
+    int n = write(sockfd, &size, sizeof(int32_t));
+    if (n < 0){
+        printf("error writing to socket\n");
+        return 1;
+    }
+    printf("staring to send file\n");
+    while(size != 0){
+        buffer[0] = data_p[size-1]; 
+        n = write(sockfd, buffer, BUF_SIZE); 
+        if (n < 0){ 
+            printf("ERROR writing to socket\n"); 
+            return 1;
+        }
+        bzero(buffer, BUF_SIZE);
+        size--;
+    }
+    printf("finished sending file\n");
+    return 0;
+}
+
+int receive_buffer(void* data, int sockfd) {
+    int ret;
+    char buffer[BUF_SIZE];
+    char* data_p = data;
+    memset(buffer, 0, BUF_SIZE);
+    int32_t size;
+    ret = read(sockfd, &size, sizeof(int32_t)); 
+    if(ret <= 0){
+        printf("error receiving size of the buffer\n");
+        return 1;
+    }
+    printf("size of the buffer is %d bytes\n", size);
+    
+    printf("starting to receive buffer\n");
+    while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0) {
+        if (ret < 0) {
+            printf("Error receiving data!\n");
+            return 1;
+        } 
+        data_p[size] = buffer[0]; 
+        bzero(buffer, BUF_SIZE);
+        size--;
+    }
+    printf("successfully received %d bytes of data\n", size);
+    return 0;
 }

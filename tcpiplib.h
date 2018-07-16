@@ -25,6 +25,13 @@ int init_server(int portno);
  */
 int init_client(char* serveraddr, int portno);
 
+/* Closes the communication. Should only use this when all communication is over
+ *
+ * input: int sockfd -- socket number returned from initialization
+ * output: int -- success = 0 failure = -1
+ */
+int close_connection(int sockfd);
+
 /* transmit the File pointed by pointer in. 
  * File needs to be opened with the option rb intead of just r to read the file in binary
  * This function also deso not close the file. 
@@ -48,8 +55,7 @@ int transmit_file(FILE* in, int sockfd);
  */
 int receive_file(char* out, int sockfd);
 
-/* Closes the communication. Should only use this when all communication is over
- *
- * input: int sockfd -- socket number returned from initialization
- */
-void close_connection(int sockfd);
+int transmit_buffer(void* data, int32_t size, int sockfd);
+
+int receive_buffer(void* data, int sockfd);
+
