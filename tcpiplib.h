@@ -57,5 +57,5 @@ int receive_file(char* out, int sockfd);
 
 int transmit_buffer(void* data, int32_t size, int sockfd);
 
-int receive_buffer(void* data, int sockfd);
+void* receive_buffer(int sockfd);
 

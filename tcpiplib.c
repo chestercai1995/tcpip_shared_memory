@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <arpa/inet.h>
+#include <errno.h>
 #include "tcpiplib.h"
 
 int init_server(int portno){
@@ -18,16 +19,21 @@ int init_server(int portno){
     char clientAddr[CLADDR_LEN];
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0){
-       printf("ERROR opening socket\n");
+       printf("ERROR opening socket: %s\n", strerror(errno));
        return -1;
     } 
     printf("Socket created...\n");
+    int on = 1;
+    int ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+    if(ret){
+        printf("ERROR enabling address reuse: %s", strerror(errno));
+    }
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(portno);
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0){
-             printf("ERROR on binding\n");
+             printf("ERROR on binding: %s\n", strerror(errno));
              return -1;
     } 
     printf("Binding done...\n");
@@ -36,7 +42,7 @@ int init_server(int portno){
     clilen = sizeof(cli_addr);
     newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
     if(newsockfd<0){
-        printf("ERROR on accept");
+        printf("ERROR on accept: %s", strerror(errno));
         return -1;
     }
     inet_ntop(AF_INET, &(cli_addr.sin_addr), clientAddr, CLADDR_LEN);
@@ -51,12 +57,12 @@ int init_client(char* serveraddr, int portno){
     printf("Waiting for connection..\n");
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0){
-        printf("ERROR opening socket\n"); 
+        printf("ERROR opening socket: %s\n", strerror(errno)); 
         return -1;
     } 
     server = gethostbyname(serveraddr); 
     if (server == NULL) { 
-        fprintf(stderr,"ERROR, no such host\n"); 
+        printf("ERROR, no such host\n"); 
         return -1;
     }
     bzero((char *) &serv_addr, sizeof(serv_addr));
@@ -140,7 +146,7 @@ int transmit_buffer(void* data, int32_t size, int sockfd) {
         printf("error writing to socket\n");
         return 1;
     }
-    printf("staring to send file\n");
+    printf("staring to send buffer\n");
     while(size != 0){
         buffer[0] = data_p[size-1]; 
         n = write(sockfd, buffer, BUF_SIZE); 
@@ -151,33 +157,34 @@ int transmit_buffer(void* data, int32_t size, int sockfd) {
         bzero(buffer, BUF_SIZE);
         size--;
     }
-    printf("finished sending file\n");
+    printf("finished sending buffer\n");
     return 0;
 }
 
-int receive_buffer(void* data, int sockfd) {
+void* receive_buffer(int sockfd) {
     int ret;
     char buffer[BUF_SIZE];
-    char* data_p = data;
     memset(buffer, 0, BUF_SIZE);
     int32_t size;
     ret = read(sockfd, &size, sizeof(int32_t)); 
     if(ret <= 0){
         printf("error receiving size of the buffer\n");
-        return 1;
+        return NULL;
     }
     printf("size of the buffer is %d bytes\n", size);
-    
+
+    char* data_p = malloc(size);
+    memset(data_p, 0, size); 
     printf("starting to receive buffer\n");
     while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0) {
         if (ret < 0) {
             printf("Error receiving data!\n");
-            return 1;
+            return NULL;
         } 
-        data_p[size] = buffer[0]; 
+        data_p[size - 1] = buffer[0]; 
         bzero(buffer, BUF_SIZE);
         size--;
     }
     printf("successfully received %d bytes of data\n", size);
-    return 0;
+    return (void*)data_p;
 }
