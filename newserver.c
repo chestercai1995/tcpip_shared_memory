@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "tcpiplib.h"
 #include <string.h>
+#include <unistd.h>
 int main(int argc, char** argv){
     int sockfd = init_server(1234);
     //transmit_file(in, sockfd);

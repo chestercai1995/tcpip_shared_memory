@@ -125,13 +125,16 @@ int receive_file(char* out, int sockfd){
     }
     printf("size of the file is %d bytes\n", size);
     printf("starting to receive file\n");
-    while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0) {
+    //while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0) {
+    int i;
+    for(i = 0; i < size; i++){
+        ret = read(sockfd, buffer, BUF_SIZE)
         if (ret < 0) {
             printf("Error receiving data!\n");
             return 1;
         } 
-       fwrite(buffer, BUF_SIZE, 1, output);
-       bzero(buffer, BUF_SIZE);
+        fwrite(buffer, BUF_SIZE, 1, output);
+        bzero(buffer, BUF_SIZE);
     }
     printf("Closing connection\n");
     fclose(output);
@@ -165,10 +168,10 @@ void* receive_buffer(int sockfd) {
     int ret;
     char buffer[BUF_SIZE];
     memset(buffer, 0, BUF_SIZE);
-    int32_t size;
+    int32_t size = 0;
     ret = read(sockfd, &size, sizeof(int32_t)); 
-    if(ret <= 0){
-        printf("error receiving size of the buffer\n");
+    if(ret < 0){
+        printf("error receiving size of the buffer: %s\n", strerror(errno));
         return NULL;
     }
     printf("size of the buffer is %d bytes\n", size);
@@ -176,15 +179,17 @@ void* receive_buffer(int sockfd) {
     char* data_p = malloc(size);
     memset(data_p, 0, size); 
     printf("starting to receive buffer\n");
-    while ((ret = read(sockfd, buffer, BUF_SIZE)) > 0) {
+    //while (()ret = read(sockfd, buffer, BUF_SIZE) > 0) {
+    int i;
+    for(i = 0; i < size; i++){
+        ret = read(sockfd, buffer, BUF_SIZE);
         if (ret < 0) {
-            printf("Error receiving data!\n");
+            printf("Error receiving data: %s\n", strerror(errno));
             return NULL;
         } 
-        data_p[size - 1] = buffer[0]; 
+        data_p[size - 1 - i] = buffer[0]; 
         bzero(buffer, BUF_SIZE);
-        size--;
     }
-    printf("successfully received %d bytes of data\n", size);
+    printf("successfully received %d bytes of data\n", i);
     return (void*)data_p;
 }

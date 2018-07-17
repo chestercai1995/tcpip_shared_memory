@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "tcpiplib.h"
 #include <string.h>
+#include <unistd.h>
 int main(int argc, char** argv){
     int sockfd = init_client("192.168.1.151", 1234);
     char* buffer = (char*)receive_buffer(sockfd);
@@ -13,6 +14,6 @@ int main(int argc, char** argv){
     printf("%s", buffer);
     printf("***************************\n");
     int* ia = (int*)receive_buffer(sockfd);
-    printf("received: %d, %d, %d, %d, %d", ia[0], ia[1], ia[2], ia[3], ia[4]);
+    printf("received: %d, %d, %d, %d, %d\n", ia[0], ia[1], ia[2], ia[3], ia[4]);
     close_connection(sockfd);
 }

@@ -55,7 +55,21 @@ int transmit_file(FILE* in, int sockfd);
  */
 int receive_file(char* out, int sockfd);
 
+/* Transmits specified bytes of data using sockfd. 
+ * data input is a void pointer to work with any type of data
+ *
+ * input: void* data -- data buffer
+ *        int32_t size -- data size
+ *        int sockfd -- socket number returned from initialization 
+ * output: 0 on success, 1 on error
+ */
 int transmit_buffer(void* data, int32_t size, int sockfd);
 
+/* Receive data transmitted by transmit_buffer()
+ *
+ * input: int sockfd -- socket number returned from initialization
+ * output: void* -- buffer that holds the data, need to be cast by user into apporiate type
+ * on failure, it returns a NULL pointer
+ */
 void* receive_buffer(int sockfd);
 
