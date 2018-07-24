@@ -108,7 +108,6 @@ int close_connection(){
 }
 
 int transmit_file(FILE* in){
-        
     int sockfd = sock;
     char buffer[BUF_SIZE];
     printf("calculating the size of the file\n");
@@ -170,11 +169,10 @@ int receive_file(char* out){
     return 0;
 }
 
-int transmit_buffer(void* data, int32_t size) {
+int transmit_buffer_nolock(void* data, int32_t size) {
     int sockfd = sock;
     char buffer[BUF_SIZE];
     char* data_p = data;
-    sem_wait(&send_lock);
     int n = write(sockfd, &size, sizeof(int32_t));
     if (n < 0){
         printf("error writing to socket\n");
@@ -191,9 +189,14 @@ int transmit_buffer(void* data, int32_t size) {
         bzero(buffer, BUF_SIZE);
         size--;
     }
-    sem_post(&send_lock);
     printf("finished sending buffer\n");
     return 0;
+}
+
+int transmit_buffer(void* data, int32_t size){
+    sem_wait(&send_lock);
+    transmit_buffer_nolock(data, size);
+    sem_post(&send_lock);
 }
 
 void* receive_buffer() {//try to see if databuffer can be force to be freed
@@ -269,12 +272,20 @@ void *listener (void *arg){
         }
         else if(sync == 2){//getOtherLock
             sem_wait(&shm_lock);
+            sem_wait(&send_lock);
             transmit_char((char)3);
+            sem_post(&send_lock);
         }
         else if(sync == 3){//gotOtherLock
             sem_post(&other_lock);
         } 
-        else if(sync == 4){//resize
+        else if(sync == 4){//releaseOtherLock
+            sem_post(&shm_lock);
+        }
+        else if(sync == 5){//resize
+        }
+        else{
+            printf("something went wrong");
         }
     }
     return NULL;
@@ -329,15 +340,18 @@ void getOtherLock(){
     transmit_char((char)2);
     sem_wait(&other_lock);
 }
+
+void releaseOtherLock(){
+    transmit_char((char)4);
+}
+
 //need to get both locks
 int write_sm(void* data, int32_t start, int size){
     if(rank == 0){//server
         sem_wait(&shm_lock);
         getOtherLock();
-        //then get the other one
     }
     else{//client
-        //first get the other one
         getOtherLock();
         sem_wait(&shm_lock);
     }
@@ -347,12 +361,12 @@ int write_sm(void* data, int32_t start, int size){
     transmit_buffer(data, size);
     
     if(rank == 0){
-        //release the other one first
+        releaseOtherLock();
         sem_post(&shm_lock);
     }
     else{
         sem_post(&shm_lock);
-        //release the other one second
+        releaseOtherLock();
     }
 }
 //need to get both locks
