@@ -1,3 +1,5 @@
+#include <semaphore.h>
+
 #define BUF_SIZE 1
 #define CLADDR_LEN 100
 
@@ -25,12 +27,14 @@ int init_server(int portno);
  */
 int init_client(char* serveraddr, int portno);
 
+void *listener (void *arg);
+
 /* Closes the communication. Should only use this when all communication is over
  *
  * input: int sockfd -- socket number returned from initialization
  * output: int -- success = 0 failure = -1
  */
-int close_connection(int sockfd);
+int close_connection();
 
 /* transmit the File pointed by pointer in. 
  * File needs to be opened with the option rb intead of just r to read the file in binary
@@ -42,7 +46,7 @@ int close_connection(int sockfd);
  *        int sockfd -- the socket number returned from initialization
  * output: int -- success = 0 failure = 1
  */
-int transmit_file(FILE* in, int sockfd);
+int transmit_file(FILE* in);
 
 /* Receive the File named with the given string. 
  * Note that the input is a char*(string), not a file pointer.
@@ -53,7 +57,7 @@ int transmit_file(FILE* in, int sockfd);
  *        int sockfd -- socket number returned from initialization
  * output: int -- success = 0 failure = 1
  */
-int receive_file(char* out, int sockfd);
+int receive_file(char* out);
 
 /* Transmits specified bytes of data using sockfd. 
  * data input is a void pointer to work with any type of data
@@ -63,7 +67,7 @@ int receive_file(char* out, int sockfd);
  *        int sockfd -- socket number returned from initialization 
  * output: 0 on success, 1 on error
  */
-int transmit_buffer(void* data, int32_t size, int sockfd);
+int transmit_buffer(void* data, int32_t size);
 
 /* Receive data transmitted by transmit_buffer()
  *
@@ -71,5 +75,20 @@ int transmit_buffer(void* data, int32_t size, int sockfd);
  * output: void* -- buffer that holds the data, need to be cast by user into apporiate type
  * on failure, it returns a NULL pointer
  */
-void* receive_buffer(int sockfd);
+void* receive_buffer();
 
+int transmit_int32(int32_t num);
+
+int transmit_char(char num);
+
+int init_sm(void* data, int32_t size);
+
+int accept_sm();
+
+int destroy_sm();
+
+void* read_sm(int index, int start, int size);
+
+int write_sm(void* data, int32_t start, int size);
+
+int sys_sync();
