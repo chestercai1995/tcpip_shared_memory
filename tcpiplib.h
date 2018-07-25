@@ -87,7 +87,7 @@ int accept_sm();
 
 int destroy_sm();
 
-void* read_sm(int index, int start, int size);
+void* read_sm(int start, int size);
 
 int write_sm(void* data, int32_t start, int size);
 

@@ -19,5 +19,9 @@ int main(int argc, char** argv){
     int_array[3] = 2;
     int_array[4] = 1;
     transmit_buffer((void*)int_array, 5*sizeof(int));
+    init_sm(int_array, 5);
+    sleep(5);
+    sys_sync();
+    destroy_sm();
     close_connection(sockfd);
 }
