@@ -32,7 +32,6 @@ int init_server(int portno){
        printf("ERROR opening socket: %s\n", strerror(errno));
        return -1;
     } 
-    printf("Socket created...\n");
     int on = 1;
     int ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
     if(ret){
@@ -46,8 +45,6 @@ int init_server(int portno){
              printf("ERROR on binding: %s\n", strerror(errno));
              return -1;
     } 
-    printf("Binding done...\n");
-    printf("Waiting for a connection...\n");
     listen(sockfd,5);
     clilen = sizeof(cli_addr);
     sock = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
@@ -68,7 +65,6 @@ int init_server(int portno){
 int init_client(char* serveraddr, int portno){
     struct sockaddr_in serv_addr; 
     struct hostent *server; 
-    printf("Waiting for connection..\n");
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0){
         printf("ERROR opening socket: %s\n", strerror(errno)); 
@@ -120,7 +116,6 @@ int transmit_file(FILE* in){
         printf("error writing to socket\n");
         return 1;
     }
-    printf("staring to send file\n");
     while(fread(buffer, BUF_SIZE, 1, in)){
         n = write(sock, buffer, BUF_SIZE); 
         if (n < 0){ 
@@ -130,7 +125,6 @@ int transmit_file(FILE* in){
         bzero(buffer, BUF_SIZE);
     }
     sem_post(&send_lock);
-    printf("finished sending file\n");
     return 0;
 }
 
@@ -151,7 +145,6 @@ int receive_file(char* out){
         return 1;
     }
     printf("size of the file is %d bytes\n", size);
-    printf("starting to receive file\n");
     int i;
     for(i = 0; i < size; i++){
         ret = read(sock, buffer, BUF_SIZE);
@@ -162,7 +155,6 @@ int receive_file(char* out){
         fwrite(buffer, BUF_SIZE, 1, output);
         bzero(buffer, BUF_SIZE);
     }
-    printf("Closing connection\n");
     fclose(output);
     return 0;
 }
@@ -170,12 +162,13 @@ int receive_file(char* out){
 int transmit_buffer_nolock(void* data, int32_t size) {
     char buffer[BUF_SIZE];
     char* data_p = data;
+    printf("transmitting size of %d\n", size);
     int n = write(sock, &size, sizeof(int32_t));
     if (n < 0){
         printf("error writing to socket\n");
         return 1;
     }
-    printf("starting to send buffer\n");
+    printf("starting to send buffer of size %d\n", size);
     while(size != 0){
         buffer[0] = data_p[size-1]; 
         n = write(sock, buffer, BUF_SIZE); 
@@ -186,7 +179,6 @@ int transmit_buffer_nolock(void* data, int32_t size) {
         bzero(buffer, BUF_SIZE);
         size--;
     }
-    printf("finished sending buffer\n");
     return 0;
 }
 
@@ -206,11 +198,8 @@ void* receive_buffer() {//try to see if databuffer can be force to be freed
         printf("error receiving size of the buffer: %s\n", strerror(errno));
         return NULL;
     }
-    printf("size of the buffer is %d bytes\n", size);
-
     char* databuffer = malloc(size);
     memset(databuffer, 0, size); 
-    printf("starting to receive buffer\n");
     int i;
     for(i = 0; i < size; i++){
         ret = read(sock, buffer, BUF_SIZE);
@@ -221,7 +210,6 @@ void* receive_buffer() {//try to see if databuffer can be force to be freed
         databuffer[size - 1 - i] = buffer[0]; 
         bzero(buffer, BUF_SIZE);
     }
-    printf("successfully received %d bytes of data\n", i);
     return (void*)databuffer;
 }
 
@@ -253,14 +241,15 @@ void *listener (void *arg){
         memset(buffer, 0, BUF_SIZE);
         ret = read(sock, &sync, sizeof(char)); 
         if(ret <= 0){
-            printf("error receiving sync\n");
+            printf("error receiving sync, the other user has probably terminated shared mememory\n");
             break;
         }
         if(sync == 0){//write
+            int32_t start;
             memset(buffer, 0, BUF_SIZE);
-            ret = read(sock, &sync, sizeof(char)); 
+            ret = read(sock, &start, sizeof(int32_t)); 
             if(ret <= 0){
-                printf("error receiving write start position\n");
+                printf("error receiving write start position: %s\n", strerror(errno));
                 break;
             }
             int32_t size = 0;
@@ -270,7 +259,6 @@ void *listener (void *arg){
                 break;
             }
             printf("size of the buffer is %d bytes\n", size);
-            printf("starting to receive buffer\n");
             int i;
             char* shm_c = (char*)shm;
             for(i = 0; i < size; i++){
@@ -279,21 +267,24 @@ void *listener (void *arg){
                     printf("Error receiving data: %s\n", strerror(errno));
                     return NULL;
                 } 
-                shm_c[size - 1 - i] = buffer[0]; 
+                shm_c[start + size - 1 - i] = buffer[0]; 
                 bzero(buffer, BUF_SIZE);
             }
-            printf("successfully wrote %d bytes of data into shm\n", i);
         }
         else if(sync == 1){//sync
-            printf("the other one is done\n");
             sem_post(&sync_lock);
-            printf("lock lifted\n");
         }
         else if(sync == 2){//getOtherLock
-            sem_wait(&shm_lock);
+            if(sem_trywait(&shm_lock)== -1){//didn't get the lock
+                sem_wait(&send_lock);
+                transmit_char((char)6);
+                sem_post(&send_lock);
+            }
+            else{
             sem_wait(&send_lock);
             transmit_char((char)3);
             sem_post(&send_lock);
+            }
         }
         else if(sync == 3){//gotOtherLock
             sem_post(&other_lock);
@@ -302,6 +293,20 @@ void *listener (void *arg){
             sem_post(&shm_lock);
         }
         else if(sync == 5){//resize
+            int new_size;
+            ret = read(sock, &new_size, sizeof(int32_t)); 
+            if(ret < 0){
+                printf("error receiving new_size: %s\n", strerror(errno));
+                break;
+            }
+            void* old_shm = shm;
+            shm = realloc(old_shm, new_size);
+            free(old_shm);
+        }
+        else if(sync == 6){//request other lock again
+            sem_wait(&send_lock);
+            transmit_char((char)2);
+            sem_post(&send_lock);
         }
         else{
             printf("something went wrong");
@@ -313,10 +318,17 @@ void *listener (void *arg){
 int init_sm(void* data, int32_t size){
     if(already_an_shm){
         printf("ERROR: There is already an shared memory, only one can be created\n");
-        return -1;
+        return 1;
     }
     already_an_shm = 1;
     transmit_buffer(data, size);
+    shm = malloc(size);
+    char* shm_c = shm;
+    char* data_c = data;
+    int i;
+    for(i = 0; i < size; i++){
+       shm_c[i]=data_c[i];
+    }
     if(pthread_create(&tid, NULL, listener, NULL)){
         printf("error creating the listening thread\n");
         return -1;
@@ -329,11 +341,11 @@ int init_sm(void* data, int32_t size){
 
 int accept_sm(){
     shm = receive_buffer();
+    already_an_shm = 1;
     if(pthread_create(&tid, NULL, listener, NULL)){
         printf("error creating the listening thread\n");
         return -1;
     }
-    already_an_shm = 1;
     sem_init(&shm_lock, 0, 1);
     sem_init(&other_lock, 0, 0);
     sem_init(&sync_lock, 0, 0);
@@ -341,6 +353,11 @@ int accept_sm(){
 }
 
 int destroy_sm(){
+    if(!already_an_shm){
+        printf("ERROR: there are no shared memory in use\n");
+        return 1;
+    }
+    already_an_shm = 0;
     sem_destroy(&shm_lock);
     sem_destroy(&other_lock);
     sem_destroy(&sync_lock);
@@ -354,7 +371,7 @@ void* read_sm(int start, int size){
     char* data = malloc(size);
     char* shm_c = (char*) shm;
     int i;
-    for(i = 0; i < size; size++){
+    for(i = 0; i < size; i++){
         data[i] = shm_c[start + i];
     } 
     sem_post(&shm_lock);
@@ -365,6 +382,7 @@ void getOtherLock(){
     sem_wait(&send_lock);
     transmit_char((char)2);
     sem_post(&send_lock);
+    printf("waiting on lock\n");
     sem_wait(&other_lock);
 }
 
@@ -377,13 +395,18 @@ void releaseOtherLock(){
 int write_sm(void* data, int32_t start, int size){
     if(rank == 0){
         sem_wait(&shm_lock);
-        getOtherLock();
+        getOtherLock();\
     }
     else{
         getOtherLock();
         sem_wait(&shm_lock);
     }
-
+    int i;
+    char* shm_c = (char*)shm;
+    char* data_c = (char*)data;
+    for(i = 0; i < size; i++){
+        shm_c[start + i] = data_c[i];
+    }
     sem_wait(&send_lock);
     transmit_char((char)0);
     transmit_int32(start);
@@ -398,10 +421,34 @@ int write_sm(void* data, int32_t start, int size){
         sem_post(&shm_lock);
         releaseOtherLock();
     }
+    return 0;
 }
 //need to get both locks
 int resize_sm(int new_size){
-    
+    if(rank == 0){
+        sem_wait(&shm_lock);
+        getOtherLock();
+    }
+    else{
+        getOtherLock();
+        sem_wait(&shm_lock);
+    }
+    void* old_shm = shm;
+    shm = realloc(old_shm, new_size);
+    free(old_shm);
+    sem_wait(&send_lock);
+    transmit_char((char)5);
+    transmit_int32(new_size);
+    sem_post(&send_lock);
+
+    if(rank == 0){
+        releaseOtherLock();
+        sem_post(&shm_lock);
+    }
+    else{
+        sem_post(&shm_lock);
+        releaseOtherLock();
+    }
     return 0;
 }
 

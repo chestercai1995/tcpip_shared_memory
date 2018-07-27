@@ -27,7 +27,6 @@ int init_server(int portno);
  */
 int init_client(char* serveraddr, int portno);
 
-void *listener (void *arg);
 
 /* Closes the communication. Should only use this when all communication is over
  *
@@ -77,18 +76,40 @@ int transmit_buffer(void* data, int32_t size);
  */
 void* receive_buffer();
 
-int transmit_int32(int32_t num);
-
-int transmit_char(char num);
-
+/* initiate a shared memory, data will be put in the shared memory. only one side can call this, the other side must call accept _sm.
+ * Starting a shared memory will also start a listening thread which will handle all of the receives. You should not use transmit_buffer or transmit_file when a shared memory is in use. 
+ * You can only have one shared memory at a time. If you need to store more than one data type in the shared memory, use a struct.
+ * This function must be paired with accept_sm()
+ *
+ * input: void* data, numbers/strings/chars/structs(whatever you want) to be in the shared memory
+ *        int size size of the data
+ * output: int 0 on success, 1 on failure
+ */
 int init_sm(void* data, int32_t size);
 
+/* accept an shared memory, the other side should have called or are going to call init_sm
+ * This function acts the same way as the init_sm, the only difference is that it would receive the data and size from the init side instead of the user.
+ * This function also creates a listening thread. transmit_buffer or transmit_file should not be used while a shared memory is in use.
+ * This function must be paired with init_sm()
+ * 
+ * output: int 0 on success, 1 on failure
+ */
 int accept_sm();
 
+/* destroy the shared memory in use. data in the shared memory are lost. 
+ * listening thread will be canceled at the next cancellation point. look at man 7 threads
+ * 
+ * returns 0 on success, 1 on failure
+ */
 int destroy_sm();
 
+/* this would return a void pointer to an array with specified sized. the data in returning array would be from the starting byte with specified size
+ * the pointer needs to be freed by the user in order for it not to be 
+ */
 void* read_sm(int start, int size);
 
 int write_sm(void* data, int32_t start, int size);
+
+int resize_sm(int new_size);
 
 int sys_sync();
