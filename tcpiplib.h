@@ -79,6 +79,7 @@ void* receive_buffer();
 /* initiate a shared memory, data will be put in the shared memory. only one side can call this, the other side must call accept _sm.
  * Starting a shared memory will also start a listening thread which will handle all of the receives. You should not use transmit_buffer or transmit_file when a shared memory is in use. 
  * You can only have one shared memory at a time. If you need to store more than one data type in the shared memory, use a struct.
+ * All the data must be stored in the shared memory, no pointers should be stored in the shared memory as they will point the data to a region out side of the shared memory
  * This function must be paired with accept_sm()
  *
  * input: void* data, numbers/strings/chars/structs(whatever you want) to be in the shared memory
@@ -103,13 +104,34 @@ int accept_sm();
  */
 int destroy_sm();
 
-/* this would return a void pointer to an array with specified sized. the data in returning array would be from the starting byte with specified size
- * the pointer needs to be freed by the user in order for it not to be 
+/* This function would let you read size byte at start byte location in the shared memory into the ptr array.
+ * 
+ * input: void* ptr --where the data to be put into
+ *        int start --start reading at start byte
+ *        int size --read size byte
  */
-void* read_sm(int start, int size);
+void read_sm(void* ptr, int start, int size);
 
-int write_sm(void* data, int32_t start, int size);
+/* This function lets you write into the shared memory at start byte with size byte in data pointer
+ * When this function returns, it garantees that the local copy has been updated. However,it does not garantee that the other copy has been updated, and chances are it probably hasn't been updated
+ *
+ * input: void* data --data to be written into the shared memory
+ *        int32_t start --where to write into(starting position in bytes in shared memory)
+ *        int32_t size --size of data
+ */
+int write_sm(void* data, int32_t start, int32_t size);
 
+/* This allows you to resize you shared memory, it works very similar to realloc, see man realloc
+ * This call will copy the data in the old shared memory into the new shared memory up to the minimum of the old size and the new size, the rest of the data in the new memory will be uninitiated
+ * note: The new size can be smaller than the original size, but you will lose some of the data after this call
+ *
+ * input: int new_size --the new size of the shared memory
+ */
 int resize_sm(int new_size);
 
+/* system synchronization. This function will garantee that all the functions called before sys_sync on both sides are completed. It can also garantee that all the write to shared memory request is completed. 
+ * In other words, use this function to make sure both shared memory is up to date.
+ *
+ * output: int --0 on success, 1 on failure. 
+ */
 int sys_sync();

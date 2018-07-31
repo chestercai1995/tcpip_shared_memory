@@ -4,7 +4,8 @@
 #include <string.h>
 #include <unistd.h>
 int main(int argc, char** argv){
-    int sockfd = init_client("192.168.1.151", 1234);
+    //int sockfd = init_client("192.168.1.151", 1234);
+    int sockfd = init_client("127.0.0.1", 1234);
     char* buffer = (char*)receive_buffer();
     printf("***************************\n");
     printf("%s", buffer);
@@ -41,10 +42,6 @@ int main(int argc, char** argv){
     sys_sync();
     int i;
     int* ir=read_sm(0, 100*sizeof(int));
-    printf("im reading: \n");
-    for(i = 0; i< 100; i++){
-        printf("at index %d I have %d\n", i, ir[i]);
-    }
     destroy_sm();
     close_connection(sockfd);
 }

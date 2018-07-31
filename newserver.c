@@ -50,10 +50,6 @@ int main(int argc, char** argv){
     write_sm(ie, 0, 100*sizeof(int));
     sys_sync();
     int* ir=read_sm(0, 100*sizeof(int));
-    printf("im reading: \n");
-    for(i = 0; i< 100; i++){
-        printf("at index %d I have %d\n", i, ir[i]);
-    }
     destroy_sm();
     close_connection(sockfd);
 }
