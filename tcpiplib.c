@@ -303,6 +303,7 @@ void *listener (void *arg){
                 printf("Failed to resize shared memory\n");
                 break;
             }
+            sem_post(&shm_lock);
         }
         else if(sync == 6){//request other lock again
             sem_wait(&send_lock);
@@ -500,18 +501,18 @@ int resize_sm(int new_size){
     sem_post(&send_lock);
 
     if(rank == 0){
-        if(releaseOtherLock()){
-            printf("Failed to release other lock\n");
-            return 1;
-        }
+        //if(releaseOtherLock()){
+        //    printf("Failed to release other lock\n");
+        //    return 1;
+        //}
         sem_post(&shm_lock);
     }
     else{
         sem_post(&shm_lock);
-        if(releaseOtherLock()){
-            printf("Failed to release other lock\n");
-            return 1;
-        }
+        //if(releaseOtherLock()){
+        //    printf("Failed to release other lock\n");
+        //    return 1;
+        //}
     }
     return 0;
 }
