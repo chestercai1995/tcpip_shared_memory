@@ -261,7 +261,7 @@ void *listener (void *arg){
                 printf("Error receiving data: %s\n", strerror(errno));
                 return NULL;
             } 
-            
+            sem_post(&shm_lock);
         }
         else if(sync == 1){//sync
             sem_post(&sync_lock);
@@ -454,18 +454,15 @@ int write_sm(void* data, int32_t start, int32_t size){
         shm_c[start + i] = data_c[i];
     }
     if(rank == 0){
-        releaseOtherLock();
-        if(sem_post(&shm_lock)){
-            printf("Failed to release other lock\n");
-            return 1;
-        }
+    //    releaseOtherLock();
+        sem_post(&shm_lock);
     }
     else{
         sem_post(&shm_lock);
-        if(releaseOtherLock()){
-            printf("Failed to get other lock\n");
-            return 1;
-        }
+     //   if(releaseOtherLock()){
+     //       printf("Failed to get other lock\n");
+     //       return 1;
+     //   }
     }
     return 0;
 }
