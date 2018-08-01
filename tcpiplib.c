@@ -160,22 +160,11 @@ int receive_file(char* out){
     } 
     fwrite(buffer, size, 1, output);
 
-    //int i;
-    //for(i = 0; i < size; i++){
-    //    ret = read(sock, buffer, BUF_SIZE);
-    //    if (ret < 0) {
-    //        printf("Error receiving data!\n");
-    //        return 1;
-    //    } 
-    //    fwrite(buffer, BUF_SIZE, 1, output);
-    //    bzero(buffer, BUF_SIZE);
-    //}
     fclose(output);
     return 0;
 }
 
 int transmit_buffer_nolock(void* data, int32_t size) {
-    //char buffer[BUF_SIZE];
     char* data_p = data;
     printf("transmitting size of %d\n", size);
     int n = write(sock, &size, sizeof(int32_t));
@@ -190,29 +179,19 @@ int transmit_buffer_nolock(void* data, int32_t size) {
         printf("ERROR writing to socket\n"); 
         return 1;
     }
-    //while(size != 0){
-    //    buffer[0] = data_p[size-1]; 
-    //    n = write(sock, buffer, BUF_SIZE); 
-    //    if (n < 0){ 
-    //        printf("ERROR writing to socket\n"); 
-    //        return 1;
-    //    }
-    //    bzero(buffer, BUF_SIZE);
-    //    size--;
-    //}
     return 0;
 }
 
 int transmit_buffer(void* data, int32_t size){
     sem_wait(&send_lock);
-    transmit_buffer_nolock(data, size);
+    if(transmit_buffer_nolock(data, size)){
+        return 1;
+    }
     sem_post(&send_lock);
 }
 
 void* receive_buffer() {//try to see if databuffer can be force to be freed
     int ret;
-    //char buffer[BUF_SIZE];
-    //memset(buffer, 0, BUF_SIZE);
     int32_t size = 0;
     ret = read(sock, &size, sizeof(int32_t)); 
     if(ret < 0){
@@ -227,34 +206,22 @@ void* receive_buffer() {//try to see if databuffer can be force to be freed
         return NULL;
     } 
 
-    //int i;
-    //for(i = 0; i < size; i++){
-    //    ret = read(sock, buffer, BUF_SIZE);
-    //    if (ret < 0) {
-    //        printf("Error receiving data: %s\n", strerror(errno));
-    //        return NULL;
-    //    } 
-    //    databuffer[size - 1 - i] = buffer[0]; 
-    //    bzero(buffer, BUF_SIZE);
-    //}
     return (void*)databuffer;
 }
 
 int transmit_int32(int32_t num){
-    char buffer[BUF_SIZE];
     int n = write(sock, &num, sizeof(int32_t));
     if (n < 0){
-        printf("error writing to socket\n");
+        printf("Error writing to socket: %s\n", strerror(errno));
         return 1;
     }
     return 0;
 }
 
 int transmit_char(char num){
-    char buffer[BUF_SIZE];
     int n = write(sock, &num, sizeof(char));
     if (n < 0){
-        printf("error writing to socket\n");
+        printf("Error writing to socket: %s\n", strerror(errno));
         return 1;
     }
     return 0;
@@ -262,10 +229,8 @@ int transmit_char(char num){
 
 void *listener (void *arg){
     int ret;
-    char buffer[BUF_SIZE];
     char sync;
     while(1){
-        memset(buffer, 0, sizeof(char));
         ret = read(sock, &sync, sizeof(char)); 
         if(ret <= 0){
             printf("error receiving sync, the other user has probably terminated shared mememory\n");
@@ -273,7 +238,6 @@ void *listener (void *arg){
         }
         if(sync == 0){//write
             int32_t start;
-            memset(buffer, 0, BUF_SIZE);
             ret = read(sock, &start, sizeof(int32_t)); 
             if(ret <= 0){
                 printf("error receiving write start position: %s\n", strerror(errno));
@@ -288,7 +252,6 @@ void *listener (void *arg){
             //printf("size of the buffer is %d bytes\n", size);
             int i;
             char* shm_c = (char*)shm;
-            sem_wait(&shm_lock);
 
             ret = read(sock, shm_c + start, size);
             if (ret < 0) {
@@ -296,16 +259,6 @@ void *listener (void *arg){
                 return NULL;
             } 
             
-            //for(i = 0; i < size; i++){
-            //    ret = read(sock, buffer, BUF_SIZE);
-            //    if (ret < 0) {
-            //        printf("Error receiving data: %s\n", strerror(errno));
-            //        return NULL;
-            //    } 
-            //    shm_c[start + size - 1 - i] = buffer[0]; 
-            //    bzero(buffer, BUF_SIZE);
-            //}
-            sem_post(&shm_lock);
         }
         else if(sync == 1){//sync
             sem_post(&sync_lock);
@@ -313,16 +266,16 @@ void *listener (void *arg){
         else if(sync == 2){//getOtherLock
             if(sem_trywait(&shm_lock)== -1){//didn't get the lock
                 sem_wait(&send_lock);
-                //transmit_char((char)6);
                 if(transmit_char((char)6)){
+                    printf("failed to transmit: %s\n", strerror(errno));
                     break; 
                 }
                 sem_post(&send_lock);
             }
             else{
             sem_wait(&send_lock);
-            //transmit_char((char)3);
             if(transmit_char((char)3)){
+                printf("failed to transmit: %s\n", strerror(errno));
                 break; 
             }
             sem_post(&send_lock);
@@ -343,11 +296,17 @@ void *listener (void *arg){
             }
             void* old_shm = shm;
             shm = realloc(old_shm, new_size);
-            free(old_shm);
+            if(shm == NULL){
+                printf("Failed to resize shared memory\n");
+                break;
+            }
         }
         else if(sync == 6){//request other lock again
             sem_wait(&send_lock);
-            transmit_char((char)2);
+            if(transmit_char((char)2)){
+                printf("error sending data \n");
+                break;
+            }
             sem_post(&send_lock);
         }
         else{
@@ -364,7 +323,10 @@ int init_sm(void* data, int32_t size){
         return 1;
     }
     already_an_shm = 1;
-    transmit_buffer(data, size);
+    if(transmit_buffer(data, size)){
+        printf("Failed to send data\n");
+        return 1;
+    }
     shm = malloc(size);
     char* shm_c = shm;
     char* data_c = data;
@@ -383,7 +345,15 @@ int init_sm(void* data, int32_t size){
 }
 
 int accept_sm(){
+    if(already_an_shm){
+        printf("ERROR: There is already an shared memory, only one can be created\n");
+        return 1;
+    }
     shm = receive_buffer();
+    if(shm == NULL){
+        printf("Error receiving data\n");
+        return 1;
+    }
     already_an_shm = 1;
     if(pthread_create(&tid, NULL, listener, NULL)){
         printf("error creating the listening thread\n");
@@ -420,76 +390,124 @@ void read_sm(void* ptr, int start, int size){
     sem_post(&shm_lock);
 }
 
-void getOtherLock(){
+int getOtherLock(){
     sem_wait(&send_lock);
-    transmit_char((char)2);
+    if(transmit_char((char)2)){
+        printf("Failed to send data: %s\n", strerror(errno));
+        return 1;
+    }
     sem_post(&send_lock);
     sem_wait(&other_lock);
+    return 0;
 }
 
-void releaseOtherLock(){
+int releaseOtherLock(){
     sem_wait(&send_lock);
-    transmit_char((char)4);
+    if(transmit_char((char)4)){
+        printf("Failed to send data: %s\n", strerror(errno));
+        return 1;
+    }
     sem_post(&send_lock);
+    return 0;
 }
-//send data to the listener, let the listener get the other lock
+
 int write_sm(void* data, int32_t start, int32_t size){
-    //if(rank == 0){
-    //    sem_wait(&shm_lock);
-    //    getOtherLock();\
-    //}
-    //else{
-    //    getOtherLock();
-    //    sem_wait(&shm_lock);
-    //}
+    if(rank == 0){
+        sem_wait(&shm_lock);
+        if(getOtherLock()){
+            printf("Failed to get other lock\n");
+            return 1;
+        }
+    }
+    else{
+        if(getOtherLock()){
+            printf("Failed to get other lock\n");
+            return 1;
+        }
+        sem_wait(&shm_lock);
+    }
     sem_wait(&send_lock);
-    transmit_char((char)0);
-    transmit_int32(start);
-    transmit_buffer_nolock(data, size);
+    if(transmit_char((char)0)){
+        printf("Failed to send data\n");
+        return 1;
+    }
+    if(transmit_int32(start)){
+        printf("Failed to send data\n");
+        return 1;
+    }
+    if(transmit_buffer_nolock(data, size)){
+        printf("Failed to send data\n");
+        return 1;
+    }
     sem_post(&send_lock);
     int i;
     char* shm_c = (char*)shm;
     char* data_c = (char*)data;
-    sem_wait(&shm_lock);
     for(i = 0; i < size; i++){
         shm_c[start + i] = data_c[i];
     }
-    sem_post(&shm_lock);
-    //if(rank == 0){
-    //    releaseOtherLock();
-    //    sem_post(&shm_lock);
-    //}
-    //else{
-    //    sem_post(&shm_lock);
-    //    releaseOtherLock();
-    //}
+    if(rank == 0){
+        releaseOtherLock();
+        if(sem_post(&shm_lock)){
+            printf("Failed to release other lock\n");
+            return 1;
+        }
+    }
+    else{
+        sem_post(&shm_lock);
+        if(releaseOtherLock()){
+            printf("Failed to get other lock\n");
+            return 1;
+        }
+    }
     return 0;
 }
 //need to get both locks
 int resize_sm(int new_size){
     if(rank == 0){
         sem_wait(&shm_lock);
-        getOtherLock();
+        if(getOtherLock()){
+            printf("Failed to get other lock\n");
+            return 1;
+        }
     }
     else{
-        getOtherLock();
+        if(getOtherLock()){
+            printf("Failed to get other lock\n");
+            return 1;
+        }
         sem_wait(&shm_lock);
     }
-    void* old_shm = shm;
-    shm = realloc(old_shm, new_size);
-    free(old_shm);
+    void* new_shm;
+    new_shm = realloc(shm, new_size);
+    if(new_shm == NULL){
+        printf("realloc failed\n");
+        return 1;
+    }
     sem_wait(&send_lock);
-    transmit_char((char)5);
-    transmit_int32(new_size);
+    if(transmit_char((char)5)){
+        printf("Failed to send data: %s\n", strerror(errno));
+        return 1;
+    }
+    if(transmit_int32(new_size)){
+        printf("Failed to send data: %s\n", strerror(errno));
+        return 1;
+    }
     sem_post(&send_lock);
 
     if(rank == 0){
-        releaseOtherLock();
+        if(releaseOtherLock()){
+            printf("Failed to release other lock\n");
+            return 1;
+        }
         sem_post(&shm_lock);
     }
     else{
         sem_post(&shm_lock);
-        releaseOtherLock();
+        if(releaseOtherLock()){
+            printf("Failed to release other lock\n");
+            return 1;
+        }
     }
     return 0;
 }

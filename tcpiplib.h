@@ -104,7 +104,7 @@ int accept_sm();
  */
 int destroy_sm();
 
-/* This function would let you read size byte at start byte location in the shared memory into the ptr array.
+/* This function would let you read size bytes at start byte location in the shared memory into the ptr array.
  * 
  * input: void* ptr --where the data to be put into
  *        int start --start reading at start byte
@@ -113,7 +113,7 @@ int destroy_sm();
 void read_sm(void* ptr, int start, int size);
 
 /* This function lets you write into the shared memory at start byte with size byte in data pointer
- * When this function returns, it garantees that the local copy has been updated. However,it does not garantee that the other copy has been updated, and chances are it probably hasn't been updated
+ * When this function returns, it garantees that the local copy has been updated. However,it does not garantee that the other copy has been updated
  *
  * input: void* data --data to be written into the shared memory
  *        int32_t start --where to write into(starting position in bytes in shared memory)
@@ -126,6 +126,7 @@ int write_sm(void* data, int32_t start, int32_t size);
  * note: The new size can be smaller than the original size, but you will lose some of the data after this call
  *
  * input: int new_size --the new size of the shared memory
+ * output: 0 on success, 1 on failure
  */
 int resize_sm(int new_size);
 
