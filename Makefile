@@ -9,10 +9,10 @@ client:
 tcpiplib.o: tcpiplib.c tcpiplib.h
 	gcc -c tcpiplib.c -o tcpiplib.o -pthread
 
-newclient.o: newclient.c
+newclient.o: newclient.c tcpiplib.h
 	gcc -c newclient.c -o newclient.o -pthread
 
-newserver.o: newserver.c
+newserver.o: newserver.c tcpiplib.h
 	gcc -c newserver.c -o newserver.o -pthread
 
 newclient: newclient.o tcpiplib.o

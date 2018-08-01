@@ -33,10 +33,10 @@ int main(int argc, char** argv){
     ic[2] = 13;
     printf("im here\n");
     write_sm(ic, 1*sizeof(int), 3*sizeof(int));
-    memset(ic, 0, 5*sizeof(int));
+    memset(ic, 0, 3*sizeof(int));
     printf("im here\n");
-    write_sm(ic, 0*sizeof(int), 5*sizeof(int));
-    memset(ic, 0, 5*sizeof(int));
+    write_sm(ic, 0*sizeof(int), 3*sizeof(int));
+    memset(ic, 0, 3*sizeof(int));
     write_sm(ic, 2*sizeof(int), 3*sizeof(int));
 
     printf("im here\n");

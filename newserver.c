@@ -44,8 +44,9 @@ int main(int argc, char** argv){
     int* ib = (int*)malloc(5*sizeof(int));
     read_sm(ib, 0, sizeof(int) * 5);
     printf("read: %d, %d, %d, %d, %d\n", ib[0], ib[1], ib[2], ib[3], ib[4]);
-    resize_sm(4*sizeof(int)); 
-    int ie[4];
+    resize_sm(100*sizeof(int)); 
+    int ie[100];
+    memset(ie, 0, 100*sizeof(int));
     read_sm(ie, 0, 4*sizeof(int));
     int i;
     for(i = 0; i < 4;i++){
@@ -53,6 +54,7 @@ int main(int argc, char** argv){
     }
     write_sm(ie, 0, 100*sizeof(int));
     sys_sync();
+    printf("here\n");
     destroy_sm();
     close_connection(sockfd);
 }

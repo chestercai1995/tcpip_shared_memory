@@ -117,6 +117,9 @@ int transmit_file(FILE* in){
         return 1;
     }
     char* buffer = malloc(size);
+    if(buffer == NULL){
+        printf("failed to malloc memory\n");
+    }
     fread(buffer, size, 1, in);
     n = write(sock, buffer, size); 
     if (n < 0){ 
@@ -124,15 +127,7 @@ int transmit_file(FILE* in){
         return 1;
     }
     bzero(buffer, BUF_SIZE);
-    
-//    while(fread(buffer, BUF_SIZE, 1, in)){
-//        n = write(sock, buffer, BUF_SIZE); 
-//        if (n < 0){ 
-//            printf("ERROR writing to socket\n"); 
-//            return 1;
-//        }
-//        bzero(buffer, BUF_SIZE);
-//    }
+    free(buffer);
     sem_post(&send_lock);
     return 0;
 }
@@ -152,6 +147,10 @@ int receive_file(char* out){
     }
     printf("size of the file is %d bytes\n", size);
     char* buffer = malloc(size);
+    if(buffer == NULL){
+        printf("Failed to alloc memory\n");
+        return 1;
+    }
     memset(buffer, 0, size);
     ret = read(sock, buffer, size);
     if (ret < 0) {
@@ -159,20 +158,20 @@ int receive_file(char* out){
         return 1;
     } 
     fwrite(buffer, size, 1, output);
-
+    free(buffer);
     fclose(output);
     return 0;
 }
 
 int transmit_buffer_nolock(void* data, int32_t size) {
     char* data_p = data;
-    printf("transmitting size of %d\n", size);
+    //printf("transmitting size of %d\n", size);
     int n = write(sock, &size, sizeof(int32_t));
     if (n < 0){
         printf("error writing to socket\n");
         return 1;
     }
-    printf("starting to send buffer of size %d\n", size);
+    //printf("starting to send buffer of size %d\n", size);
     
     n = write(sock, data, size); 
     if (n < 0){ 
@@ -199,8 +198,12 @@ void* receive_buffer() {//try to see if databuffer can be force to be freed
         return NULL;
     }
     char* databuffer = malloc(size);
+    if(databuffer == NULL){
+        printf("Failed to alloc memory\n");
+        return NULL;
+    }
     memset(databuffer, 0, size); 
-    read(sock, databuffer, size);
+    ret = read(sock, databuffer, size);
     if (ret < 0) {
         printf("Error receiving data: %s\n", strerror(errno));
         return NULL;
@@ -328,6 +331,10 @@ int init_sm(void* data, int32_t size){
         return 1;
     }
     shm = malloc(size);
+    if(shm == NULL){
+        printf("Failed to alloc memory\n");
+        return 1;
+    }
     char* shm_c = shm;
     char* data_c = data;
     int i;
@@ -478,9 +485,9 @@ int resize_sm(int new_size){
         }
         sem_wait(&shm_lock);
     }
-    void* new_shm;
-    new_shm = realloc(shm, new_size);
-    if(new_shm == NULL){
+    void* old_shm = shm;
+    shm = realloc(old_shm, new_size);
+    if(shm == NULL){
         printf("realloc failed\n");
         return 1;
     }
